@@ -1,29 +1,27 @@
 --!native
 --!strict
 local ServerScriptService = game:GetService("ServerScriptService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 
 local ThreadPool = {}
 ThreadPool.__index = ThreadPool
 
+local IsClient = RunService:IsClient()
+
+local ContainerParent = if IsClient then Players.LocalPlayer:WaitForChild("PlayerScripts") else ServerScriptService
+
 -- Container for all thread pools managed by the module
 local ServerContainerName = "ManagedThreadPools"
-local ThreadPoolsContainer: Folder = ServerScriptService:FindFirstChild(ServerContainerName) or Instance.new("Folder")
+local ThreadPoolsContainer: Folder = ContainerParent:FindFirstChild(ServerContainerName) or Instance.new("Folder")
 ThreadPoolsContainer.Name = ServerContainerName
-ThreadPoolsContainer.Parent = ServerScriptService
-
--- Container for client thread pools
-local ClientContainerName = "ClientManagedThreadPools"
-local ClientThreadPoolsContainer: Folder = ReplicatedStorage:FindFirstChild(ClientContainerName) or Instance.new("Folder")
-ClientThreadPoolsContainer.Name = ClientContainerName
-ClientThreadPoolsContainer.Parent = ReplicatedStorage
+ThreadPoolsContainer.Parent = ContainerParent
 
 -- Scripts used to run parallel threads
 local ServerHandler: Script = (script.Parent :: Instance):WaitForChild("ServerHandler") :: Script
 local ClientHandler: Script = (script.Parent :: Instance):WaitForChild("ClientHandler") :: Script
 
-export type RunContext = "Server" | "Client"
 export type ActorState = "Ready" | "Running"
 
 -- Dispatch policy types
@@ -31,18 +29,18 @@ export type ActorState = "Ready" | "Running"
 -- FirstAvailable: Uses the first available worker to dispatch the next thread.
 export type DispatchPolicy = "RoundRobin" | "FirstAvailable"
 
-local function AddThread(self: any, worker: ModuleScript, isClient: boolean?)
+local function AddThread(self: any, worker: ModuleScript)
     local actor = Instance.new("Actor")
     actor.Name = tostring(#self.Actors + 1)
     actor.Parent = self.ThreadContainer
-    local handler = if isClient then ClientHandler:Clone() else ServerHandler:Clone()
+    local handler = if IsClient then ClientHandler:Clone() else ServerHandler:Clone()
     handler.Parent = actor
     worker:Clone().Parent = actor
     table.insert(self.Actors, actor)
     self.WorkerState[#self.Actors] = "Ready"
 end
 
-function ThreadPool.new(worker: ModuleScript, threads: number, policy: DispatchPolicy?, isClient: boolean?): ThreadPool
+function ThreadPool.new(worker: ModuleScript, threads: number, policy: DispatchPolicy?): ThreadPool
     assert(typeof(worker) == "Instance" and worker:IsA("ModuleScript"), "A ModuleScript that returns a function must be provided as a thread worker.")
     assert(typeof(threads) == "number" and threads % 1 == 0, "Thread count must be a positive integer.")
     
@@ -55,11 +53,10 @@ function ThreadPool.new(worker: ModuleScript, threads: number, policy: DispatchP
     self.WorkerState = SharedTable.new()
     self.ThreadContainer = Instance.new("Folder")
     self.ThreadContainer.Name = worker.Name .. "Pool"
-    self.ThreadContainer.Parent = if isClient then ClientThreadPoolsContainer else ThreadPoolsContainer
+    self.ThreadContainer.Parent = ThreadPoolsContainer
     self.TaskQueue = {} :: {{any}}
     self.PoolId = HttpService:GenerateGUID(false)
     self.AutoDispatch = false
-    self.RunContext = if isClient then "Client" else "Server"
 
     self._lastDispatchedThread = 0
     self._batchDispatchInProgress = false   -- Prevents multiple dispatches from happening at the same time to avoid assigning multiple tasks to the same thread
@@ -72,7 +69,7 @@ function ThreadPool.new(worker: ModuleScript, threads: number, policy: DispatchP
 
     -- Create the thread actors
     for _ = 1, threads do
-        AddThread(self, worker, isClient)
+        AddThread(self, worker)
     end
 
     -- Connect thread done event
@@ -339,6 +336,6 @@ function ThreadPool:DispatchAll()
     return dispatchedThreads
 end
 
-export type ThreadPool = typeof(ThreadPool.new(Instance.new("ModuleScript"), 0, nil, nil))
+export type ThreadPool = typeof(ThreadPool.new(Instance.new("ModuleScript"), 0))
 
 return ThreadPool
