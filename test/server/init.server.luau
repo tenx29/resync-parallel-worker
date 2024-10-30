@@ -1,4 +1,5 @@
 -- Benchmarking script for the Resync ThreadPool module
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Resync = ReplicatedStorage:WaitForChild("Resync") :: ModuleScript
 local ThreadPool = require(Resync.ThreadPool)
@@ -11,6 +12,12 @@ local myWorker = ReplicatedStorage:WaitForChild("NoiseWorker") :: ModuleScript
 local pool16 = ThreadPool.new(myWorker, 16)
 local pool64 = ThreadPool.new(myWorker, 64)
 local pool128 = ThreadPool.new(myWorker, 128)
+
+local isPlayTest = #Players:GetPlayers() > 0
+
+Players.PlayerAdded:Connect(function()
+    isPlayTest = true
+end)
 
 -- Perlin noise data
 local data = {
@@ -67,6 +74,11 @@ datasets.large = {
 print(`Perlin benchmark, timings averaged over ${samples} samples`)
 print("Octaves,Serial,Parallel16,Parallel64")
 for i = 16, 1024, 16 do
+    -- Interrupt the benchmark if a player is in the game to avoid lag during client testing
+    if isPlayTest then
+        error("Interrupted server benchmark: playtest in progress")
+    end
+
     table.insert(datasets.small.Octaves, i)
     datasets.small.Serial[i] = serialBenchmark(i)
     datasets.small.Parallel16[i] = parallel16Benchmark(pool16, i)
