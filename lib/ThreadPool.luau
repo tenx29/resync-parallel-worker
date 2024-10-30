@@ -21,6 +21,11 @@ export type ActorState = "Ready" | "Running"
 -- FirstAvailable: Uses the first available worker to dispatch the next thread.
 export type DispatchPolicy = "RoundRobin" | "FirstAvailable"
 
+-- Task queue types
+-- FIFO: First-In-First-Out. Threads are dispatched in the order they were added to the queue.
+-- LIFO: Last-In-First-Out. The last thread added to the queue is dispatched first.
+export type QueueType = "FIFO" | "LIFO"
+
 local function AddThread(self: any, worker: ModuleScript)
     local actor = Instance.new("Actor")
     actor.Name = tostring(#self.Actors + 1)
@@ -42,13 +47,14 @@ local function GetThreadPoolContainer(): Folder
     return ThreadPoolsContainer
 end
 
-function ThreadPool.new(worker: ModuleScript, threads: number, policy: DispatchPolicy?): ThreadPool
+function ThreadPool.new(worker: ModuleScript, threads: number, policy: DispatchPolicy?, queueType: QueueType?): ThreadPool
     assert(typeof(worker) == "Instance" and worker:IsA("ModuleScript"), "A ModuleScript that returns a function must be provided as a thread worker.")
     assert(typeof(threads) == "number" and threads % 1 == 0, "Thread count must be a positive integer.")
     
     local self = setmetatable({}, ThreadPool)
     
     self.DispatchPolicy = (policy or "FirstAvailable") :: DispatchPolicy
+    self.QueueType = (queueType or "FIFO") :: QueueType
     self.Worker = worker
     self.ThreadCount = threads
     self.Actors = {}
@@ -84,6 +90,14 @@ function ThreadPool.new(worker: ModuleScript, threads: number, policy: DispatchP
     end)
 
     return self
+end
+
+local function TakeFromQueue(queue: {any}, queueType: QueueType): any
+    if queueType == "FIFO" then
+        return table.remove(queue, 1)
+    else
+        return table.remove(queue)
+    end
 end
 
 -- Dispose of the thread pool.
@@ -258,7 +272,7 @@ function ThreadPool:DispatchNextAsync()
     end
     local threadId = self:WaitForFreeThread()
     self.WorkerState[threadId] = "Running"
-    local args = table.remove(self.TaskQueue, 1) :: {any}
+    local args = TakeFromQueue(self.TaskQueue, self.QueueType)
     local actor = self.Actors[threadId]
     self._lastDispatchedThread = threadId
     actor:SendMessage("dispatch", self.ThreadDoneEvent, actor, threadId, unpack(args))
@@ -291,7 +305,7 @@ function ThreadPool:DispatchToAllFreeThreadsAsync()
 
         assert(self.WorkerState[threadId] == "Ready", `Returned thread ({threadId}) is not ready. This should not happen.`)
         self.WorkerState[threadId] = "Running"
-        local args = table.remove(self.TaskQueue, 1) :: {any}
+        local args = TakeFromQueue(self.TaskQueue, self.QueueType)
         local actor = self.Actors[threadId]
         self._lastDispatchedThread = threadId
         actor:SendMessage("dispatch", self.ThreadDoneEvent, actor, threadId, unpack(args))
