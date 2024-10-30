@@ -10,14 +10,6 @@ ThreadPool.__index = ThreadPool
 
 local IsClient = RunService:IsClient()
 
-local ContainerParent = if IsClient then Players.LocalPlayer:WaitForChild("PlayerScripts") else ServerScriptService
-
--- Container for all thread pools managed by the module
-local ServerContainerName = "ManagedThreadPools"
-local ThreadPoolsContainer: Folder = ContainerParent:FindFirstChild(ServerContainerName) or Instance.new("Folder")
-ThreadPoolsContainer.Name = ServerContainerName
-ThreadPoolsContainer.Parent = ContainerParent
-
 -- Scripts used to run parallel threads
 local ServerHandler: Script = (script.Parent :: Instance):WaitForChild("ServerHandler") :: Script
 local ClientHandler: Script = (script.Parent :: Instance):WaitForChild("ClientHandler") :: Script
@@ -40,6 +32,16 @@ local function AddThread(self: any, worker: ModuleScript)
     self.WorkerState[#self.Actors] = "Ready"
 end
 
+-- Get the thread pool container object and create it if it doesn't exist
+local function GetThreadPoolContainer(): Folder
+    local ContainerParent = if IsClient then Players.LocalPlayer:WaitForChild("PlayerScripts") else ServerScriptService
+    local ServerContainerName = "ManagedThreadPools"
+    local ThreadPoolsContainer: Folder = ContainerParent:FindFirstChild(ServerContainerName) or Instance.new("Folder")
+    ThreadPoolsContainer.Name = ServerContainerName
+    ThreadPoolsContainer.Parent = ContainerParent
+    return ThreadPoolsContainer
+end
+
 function ThreadPool.new(worker: ModuleScript, threads: number, policy: DispatchPolicy?): ThreadPool
     assert(typeof(worker) == "Instance" and worker:IsA("ModuleScript"), "A ModuleScript that returns a function must be provided as a thread worker.")
     assert(typeof(threads) == "number" and threads % 1 == 0, "Thread count must be a positive integer.")
@@ -53,7 +55,7 @@ function ThreadPool.new(worker: ModuleScript, threads: number, policy: DispatchP
     self.WorkerState = SharedTable.new()
     self.ThreadContainer = Instance.new("Folder")
     self.ThreadContainer.Name = worker.Name .. "Pool"
-    self.ThreadContainer.Parent = ThreadPoolsContainer
+    self.ThreadContainer.Parent = GetThreadPoolContainer()
     self.TaskQueue = {} :: {{any}}
     self.PoolId = HttpService:GenerateGUID(false)
     self.AutoDispatch = false
