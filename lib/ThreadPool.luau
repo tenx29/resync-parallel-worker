@@ -237,7 +237,7 @@ end
 function ThreadPool:WaitForCompletion(requireEmptyQueue: boolean?)
     local _, threadCounts = self:GetThreadStates()
     local requireQueue = if requireEmptyQueue == nil then true else requireEmptyQueue
-    while (requireQueue and #self.TaskQueue > 0) or threadCounts.Running > 0 do
+    while (requireQueue and self._batchDispatchInProgress and #self.TaskQueue > 0) or threadCounts.Running > 0 do
         self._threadFreedEvent.Event:Wait()
         _, threadCounts = self:GetThreadStates()
     end
