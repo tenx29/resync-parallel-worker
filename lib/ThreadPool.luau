@@ -290,7 +290,7 @@ end
 
 -- Dispatches as many items from the task queue as immediately possible.
 -- Yields the current thread until all threads are dispatched.
--- Returns the number of dispatched threads and a table of their IDs.
+-- Returns the number of dispatched threads.
 function ThreadPool:DispatchToAllFreeThreadsAsync()
     local dispatchedThreads = 0
     for _ = 1, self.ThreadCount do
@@ -316,7 +316,7 @@ end
 
 -- Dispatches as many items from the task queue as immediately possible.
 -- Yields the current thread until all threads are completed.
--- Returns the number of dispatched threads and a table of their IDs.
+-- Returns the number of dispatched threads.
 function ThreadPool:DispatchToAllFreeThreads()
     local dispatchedThreads = self:DispatchToAllFreeThreadsAsync()
     self:WaitForCompletion(false)
