@@ -1,0 +1,22 @@
+{
+    "name": "resync-parallel-worker",
+    "tree": {
+      "$className": "DataModel",
+  
+      "ServerScriptService": {
+        "Server": {
+          "$path": "test/server"
+        }
+      },
+
+      "ReplicatedStorage": {
+        "$path": "test/shared",
+        "Resync": {
+          "$path": "lib"
+        },
+        "Client": {
+          "$path": "test/client"
+        }
+      }
+    }
+}
