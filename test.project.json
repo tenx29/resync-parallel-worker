@@ -13,9 +13,14 @@
         "$path": "test/shared",
         "Resync": {
           "$path": "lib"
-        },
-        "Client": {
-          "$path": "test/client"
+        }
+      },
+
+      "StarterPlayer": {
+        "StarterPlayerScripts": {
+          "Client": {
+            "$path": "test/client"
+          }
         }
       }
     }
