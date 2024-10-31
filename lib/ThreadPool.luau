@@ -47,7 +47,11 @@ local function GetThreadPoolContainer(): Folder
     return ThreadPoolsContainer
 end
 
-function ThreadPool.new(worker: ModuleScript, threads: number, queueType: QueueType?): ThreadPool
+-- Create a new thread pool with the given worker script and thread count.
+-- 
+-- If allowDispatchingToBusyThreads is true, the thread pool can dispatch new tasks to threads that are already running a task.
+-- This can reduce overhead in cases where knowing when a task finishes is not important, but disables the ability to wait for threads to finish.
+function ThreadPool.new(worker: ModuleScript, threads: number, queueType: QueueType?, allowDispatchingToBusyThreads: boolean?): ThreadPool
     assert(typeof(worker) == "Instance" and worker:IsA("ModuleScript"), "A ModuleScript that returns a function must be provided as a thread worker.")
     assert(typeof(threads) == "number" and threads % 1 == 0, "Thread count must be a positive integer.")
     
@@ -64,6 +68,7 @@ function ThreadPool.new(worker: ModuleScript, threads: number, queueType: QueueT
     self.TaskQueue = {} :: {{any}}
     self.PoolId = HttpService:GenerateGUID(false)
     self.AutoDispatch = false
+    self.AllowDispatchingToBusyThreads = allowDispatchingToBusyThreads or false
 
     self._lastDispatchedThread = 0
     self._batchDispatchInProgress = false   -- Prevents multiple dispatches from happening at the same time to avoid assigning multiple tasks to the same thread
@@ -169,12 +174,17 @@ end
 
 -- Returns the next free thread ID. If no threads are free, returns nil.
 -- Uses a round-robin dispatch policy.
+-- If dispatching to busy threads is allowed, the function will return the next initialized thread even if it's running.
 function ThreadPool:GetNextFreeThread(): number?
+    if self.AllowDispatchingToBusyThreads then
+        return self._lastDispatchedThread :: number % self.ThreadCount + 1
+    end
+
     for i = 1, self.ThreadCount do
         local thread = i + self._lastDispatchedThread :: number
         local finalThreadId = (thread - 1) % self.ThreadCount + 1
         local workerState = self.WorkerState[finalThreadId]
-        if workerState == "Ready" then
+        if workerState == "Ready" or (workerState ~= "Setup" and self.AllowDispatchingToBusyThreads) then
             return finalThreadId
         end
     end
@@ -213,7 +223,11 @@ end
 -- Yields the current thread until the specified thread is done.
 -- Note that other tasks may be dispatched soon after the thread finishes,
 -- so it is not guaranteed that the thread will be free after this function returns.
+-- If AllowDispatchingToBusyThreads is true, the function will return immediately.
 function ThreadPool:WaitForThread(threadId: number)
+    if self.AllowDispatchingToBusyThreads then
+        return
+    end
     local id = nil
     while id ~= threadId and self.WorkerState[threadId] == "Running" do
         id = self._threadFreedEvent.Event:Wait()
@@ -223,7 +237,11 @@ end
 
 -- Wait for all threads to finish. If requireEmptyQueue is true, the function will also wait for the task queue to be empty.
 -- requireEmptyQueue is true by default.
+-- If AllowDispatchingToBusyThreads is true, the function will return immediately.
 function ThreadPool:WaitForCompletion(requireEmptyQueue: boolean?)
+    if self.AllowDispatchingToBusyThreads then
+        return
+    end
     local _, threadCounts = self:GetThreadStates()
     local requireQueue = if requireEmptyQueue == nil then true else requireEmptyQueue
     while (requireQueue and self._batchDispatchInProgress and #self.TaskQueue > 0) or threadCounts.Running > 0 do
