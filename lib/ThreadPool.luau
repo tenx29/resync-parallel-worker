@@ -14,12 +14,7 @@ local IsClient = RunService:IsClient()
 local ServerHandler: Script = (script.Parent :: Instance):WaitForChild("ServerHandler") :: Script
 local ClientHandler: Script = (script.Parent :: Instance):WaitForChild("ClientHandler") :: Script
 
-export type ActorState = "Ready" | "Running"
-
--- Dispatch policy types
--- RoundRobin: Dispatches threads in a round-robin fashion. If the next worker is not ready, it will skip to the next one.
--- FirstAvailable: Uses the first available worker to dispatch the next thread.
-export type DispatchPolicy = "RoundRobin" | "FirstAvailable"
+export type ActorState = "Ready" | "Running" | "Setup"
 
 -- Task queue types
 -- FIFO: First-In-First-Out. Threads are dispatched in the order they were added to the queue.
@@ -34,7 +29,7 @@ local function AddThread(self: any, worker: ModuleScript)
     actor:SetAttribute("Id", id)
     table.insert(self.Actors, actor)
     
-    self.WorkerState[#self.Actors] = "Running"  -- Mark the thread as busy until the worker is ready
+    self.WorkerState[#self.Actors] = "Setup"  -- Prevent dispatching until the actor is ready
     
     -- Add the handler script to the actor. Once initialized, the handler will fire the "ThreadDone" event.
     worker:Clone().Parent = actor
@@ -52,13 +47,12 @@ local function GetThreadPoolContainer(): Folder
     return ThreadPoolsContainer
 end
 
-function ThreadPool.new(worker: ModuleScript, threads: number, policy: DispatchPolicy?, queueType: QueueType?): ThreadPool
+function ThreadPool.new(worker: ModuleScript, threads: number, queueType: QueueType?): ThreadPool
     assert(typeof(worker) == "Instance" and worker:IsA("ModuleScript"), "A ModuleScript that returns a function must be provided as a thread worker.")
     assert(typeof(threads) == "number" and threads % 1 == 0, "Thread count must be a positive integer.")
     
     local self = setmetatable({}, ThreadPool)
     
-    self.DispatchPolicy = (policy or "FirstAvailable") :: DispatchPolicy
     self.QueueType = (queueType or "FIFO") :: QueueType
     self.Worker = worker
     self.ThreadCount = threads
@@ -173,23 +167,15 @@ function ThreadPool:Resize(newThreadCount: number)
     self.ThreadCount = newThreadCount
 end
 
--- Returns the next free worker info and thread ID based on the dispatch policy.
--- Returns nil if all threads are busy.
+-- Returns the next free thread ID. If no threads are free, returns nil.
+-- Uses a round-robin dispatch policy.
 function ThreadPool:GetNextFreeThread(): number?
-    if self.DispatchPolicy == "RoundRobin" then
-        for i = 1, self.ThreadCount do
-            local thread = i + self._lastDispatchedThread :: number
-            local finalThreadId = (thread - 1) % self.ThreadCount + 1
-            local workerState = self.WorkerState[finalThreadId]
-            if workerState == "Ready" then
-                return finalThreadId
-            end
-        end
-    elseif self.DispatchPolicy == "FirstAvailable" then
-        for i, workerState in self.WorkerState do
-            if workerState == "Ready" then
-                return i
-            end
+    for i = 1, self.ThreadCount do
+        local thread = i + self._lastDispatchedThread :: number
+        local finalThreadId = (thread - 1) % self.ThreadCount + 1
+        local workerState = self.WorkerState[finalThreadId]
+        if workerState == "Ready" then
+            return finalThreadId
         end
     end
 
@@ -306,7 +292,6 @@ function ThreadPool:DispatchToAllFreeThreadsAsync()
             break
         end
 
-        assert(self.WorkerState[threadId] == "Ready", `Returned thread ({threadId}) is not ready. This should not happen.`)
         self.WorkerState[threadId] = "Running"
         local args = TakeFromQueue(self.TaskQueue, self.QueueType)
         local actor = self.Actors[threadId]
