@@ -27,14 +27,19 @@ export type DispatchPolicy = "RoundRobin" | "FirstAvailable"
 export type QueueType = "FIFO" | "LIFO"
 
 local function AddThread(self: any, worker: ModuleScript)
+    local id = #self.Actors + 1
     local actor = Instance.new("Actor")
-    actor.Name = "Worker" .. tostring(#self.Actors + 1)
+    actor.Name = "Worker" .. tostring(id)
     actor.Parent = self.ThreadContainer
+    actor:SetAttribute("Id", id)
+    table.insert(self.Actors, actor)
+    
+    self.WorkerState[#self.Actors] = "Running"  -- Mark the thread as busy until the worker is ready
+    
+    -- Add the handler script to the actor. Once initialized, the handler will fire the "ThreadDone" event.
+    worker:Clone().Parent = actor
     local handler = if IsClient then ClientHandler:Clone() else ServerHandler:Clone()
     handler.Parent = actor
-    worker:Clone().Parent = actor
-    table.insert(self.Actors, actor)
-    self.WorkerState[#self.Actors] = "Ready"
 end
 
 -- Get the thread pool container object and create it if it doesn't exist
@@ -71,9 +76,9 @@ function ThreadPool.new(worker: ModuleScript, threads: number, policy: DispatchP
     self._threadFreedEvent = Instance.new("BindableEvent")
 
     -- BindableEvent used to notify this module when a thread is done
-    self.ThreadDoneEvent = Instance.new("BindableEvent")
-    self.ThreadDoneEvent.Name = "ThreadDone"
-    self.ThreadDoneEvent.Parent = self.ThreadContainer
+    local ThreadDoneEvent = Instance.new("BindableEvent")
+    ThreadDoneEvent.Name = "ThreadDone"
+    ThreadDoneEvent.Parent = self.ThreadContainer
 
     -- Create the thread actors
     for _ = 1, threads do
@@ -81,7 +86,7 @@ function ThreadPool.new(worker: ModuleScript, threads: number, policy: DispatchP
     end
 
     -- Connect thread done event
-    self._threadDoneConnection = self.ThreadDoneEvent.Event:Connect(function(threadId: number, success: boolean, err: string?)
+    self._threadDoneConnection = ThreadDoneEvent.Event:Connect(function(threadId: number, success: boolean, err: string?)
         self.WorkerState[threadId] = "Ready"
         self._threadFreedEvent:Fire(threadId)
         if not success then
@@ -110,8 +115,6 @@ function ThreadPool:Destroy()
     self.TaskQueue = nil :: any
     self._threadDoneConnection:Disconnect()
     self._threadDoneConnection = nil :: any
-    self.ThreadDoneEvent:Destroy()
-    self.ThreadDoneEvent = nil :: any
     self.ThreadContainer:Destroy()
     self.ThreadContainer = nil :: any
     self.WorkerState = nil
@@ -251,7 +254,7 @@ function ThreadPool:DispatchAsync(...: any): number
     self.WorkerState[threadId] = "Running"
     local actor = self.Actors[threadId]
     self._lastDispatchedThread = threadId
-    actor:SendMessage("dispatch", self.ThreadDoneEvent, actor, threadId, ...)
+    actor:SendMessage("dispatch", actor, threadId, ...)
     return threadId
 end
 
@@ -275,7 +278,7 @@ function ThreadPool:DispatchNextAsync()
     local args = TakeFromQueue(self.TaskQueue, self.QueueType)
     local actor = self.Actors[threadId]
     self._lastDispatchedThread = threadId
-    actor:SendMessage("dispatch", self.ThreadDoneEvent, actor, threadId, unpack(args))
+    actor:SendMessage("dispatch", actor, threadId, unpack(args))
     return threadId
 end
 
@@ -308,7 +311,7 @@ function ThreadPool:DispatchToAllFreeThreadsAsync()
         local args = TakeFromQueue(self.TaskQueue, self.QueueType)
         local actor = self.Actors[threadId]
         self._lastDispatchedThread = threadId
-        actor:SendMessage("dispatch", self.ThreadDoneEvent, actor, threadId, unpack(args))
+        actor:SendMessage("dispatch", actor, threadId, unpack(args))
         dispatchedThreads += 1
     end
     return dispatchedThreads

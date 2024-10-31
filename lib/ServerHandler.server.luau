@@ -1,7 +1,8 @@
 local Actor = script:GetActor()
 
 function init()
-    Actor:BindToMessage("dispatch", function(done: BindableEvent, actor: Actor, threadId: number, ...: any)
+    local done = script.Parent.Parent:WaitForChild("ThreadDone") :: BindableEvent
+    Actor:BindToMessage("dispatch", function(actor: Actor, threadId: number, ...: any)
         local worker = (script.Parent :: Instance):FindFirstChildOfClass("ModuleScript")
 
         -- Handle errors thrown by the worker
@@ -16,6 +17,9 @@ function init()
         task.synchronize()
         done:Fire(threadId, success, trace)
     end)
+
+    -- Let the thread pool know that the worker is ready
+    done:Fire(Actor:GetAttribute("Id"), true, nil)
 end
 
 if Actor then
