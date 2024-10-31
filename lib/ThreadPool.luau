@@ -202,12 +202,12 @@ function ThreadPool:GetThreadStates(): {[ThreadState]: number}
     local states = {
         Ready = {},
         Running = {},
-        Done = {},
+        Setup = {},
     }
     local totals = {
         Ready = 0,
         Running = 0,
-        Done = 0,
+        Setup = 0,
     }
     for i, workerState in self.WorkerState do
         table.insert(states[workerState], i)
