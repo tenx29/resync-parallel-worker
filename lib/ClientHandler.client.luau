@@ -1,13 +1,13 @@
 local Actor = script:GetActor()
 
 function init()
-    Actor:BindToMessage("dispatch", function(done: BindableEvent, actor: Actor, threadId: number, data: any)
+    Actor:BindToMessage("dispatch", function(done: BindableEvent, actor: Actor, threadId: number, ...: any)
         local worker = (script.Parent :: Instance):FindFirstChildOfClass("ModuleScript")
 
         -- Handle errors thrown by the worker
-        local success, trace = xpcall(function()
-            require(worker)(actor, threadId, data)
-        end, debug.traceback)
+        local success, trace = xpcall(function(...)
+            require(worker)(actor, threadId, ...)
+        end, debug.traceback, ...)
 
         -- Sketchy workaround to exceeding re-entrancy depth for ActorMessageEvent if the worker function doesn't desynchronize
         task.desynchronize()
