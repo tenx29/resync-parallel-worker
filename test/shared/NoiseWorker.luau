@@ -10,7 +10,7 @@ type Data = {
     persistence: number,
 }
 
-return function(_actor: Actor, _threadId: number, data: Data)
+return function(_actor: Actor, _threadId: number, coords, amplitude, octaves, persistence)
     task.desynchronize()
-    Perlin.new(data.coords, data.amplitude, data.octaves, data.persistence)
+    Perlin.new(coords, amplitude, octaves, persistence)
 end

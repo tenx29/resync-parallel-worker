@@ -41,12 +41,7 @@ end
 function parallel16Benchmark(pool: any, difficulty: number)
     local t0 = os.clock()
     for _ = 1, samples do
-        pool:Add({
-            coords = data.coords,
-            amplitude = data.amplitude,
-            octaves = difficulty,
-            persistence = data.persistence
-        })
+        pool:Add(data.coords, data.amplitude, difficulty, data.persistence)
     end
     pool:DispatchAll()
     local t1 = os.clock()
