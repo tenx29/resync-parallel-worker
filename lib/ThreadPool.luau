@@ -79,11 +79,6 @@ function ThreadPool.new(worker: ModuleScript, threads: number, queueType: QueueT
     ThreadDoneEvent.Name = "ThreadDone"
     ThreadDoneEvent.Parent = self.ThreadContainer
 
-    -- Create the thread actors
-    for _ = 1, threads do
-        AddThread(self, worker)
-    end
-
     -- Connect thread done event
     self._threadDoneConnection = ThreadDoneEvent.Event:Connect(function(threadId: number, success: boolean, err: string?)
         self.WorkerState[threadId] = "Ready"
@@ -92,6 +87,11 @@ function ThreadPool.new(worker: ModuleScript, threads: number, queueType: QueueT
             warn(`Thread {threadId} failed with error: {err}`)
         end
     end)
+
+    -- Create the thread actors
+    for _ = 1, threads do
+        AddThread(self, worker)
+    end
 
     return self
 end
