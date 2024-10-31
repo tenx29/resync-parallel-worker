@@ -7,6 +7,7 @@ local ThreadPool = require(Resync.ThreadPool)
 local perlinModule = ReplicatedStorage:WaitForChild("Noise") :: ModuleScript
 local perlin = require(perlinModule)
 local myWorker = ReplicatedStorage:WaitForChild("NoiseWorker") :: ModuleScript
+local Dataset = require(ReplicatedStorage:WaitForChild("Dataset")) :: ModuleScript
 
 -- Create thread pools for benchmarking
 local pool16 = ThreadPool.new(myWorker, 16)
@@ -48,63 +49,39 @@ function parallel16Benchmark(pool: any, difficulty: number)
     return string.format("%.2f", (t1 - t0) / samples * 1000)
 end
 
-local datasets = {}
-
-datasets.small = {
-    Octaves = {},
-    Serial = {},
-    Parallel16 = {},
-    Parallel64 = {},
-    Parallel128 = {}
-}
-
-datasets.large = {
-    Octaves = {},
-    Serial = {},
-    Parallel16 = {},
-    Parallel64 = {},
-    Parallel128 = {}
-}
-
-print(`Perlin benchmark, timings averaged over ${samples} samples`)
-print("Octaves,Serial,Parallel16,Parallel64")
+print(`Perlin benchmark, timings averaged over {samples} samples`)
+print("Octaves,Serial,Parallel16,Parallel64,Parallel128")
+local lowDifficultyDataset = Dataset.new({"Octaves", "Serial", "Parallel16", "Parallel64", "Parallel128"})
 for i = 16, 1024, 16 do
     -- Interrupt the benchmark if a player is in the game to avoid lag during client testing
     if isPlayTest then
         error("Interrupted server benchmark: playtest in progress")
     end
 
-    table.insert(datasets.small.Octaves, i)
-    datasets.small.Serial[i] = serialBenchmark(i)
-    datasets.small.Parallel16[i] = parallel16Benchmark(pool16, i)
-    datasets.small.Parallel64[i] = parallel16Benchmark(pool64, i)
-    datasets.small.Parallel128[i] = parallel16Benchmark(pool128, i)
-    print(i .. "," .. datasets.small.Serial[i] .. "," .. datasets.small.Parallel16[i] .. "," .. datasets.small.Parallel64[i] .. "," .. datasets.small.Parallel128[i])
+    local serial = serialBenchmark(i)
+    local parallel16 = parallel16Benchmark(pool16, i)
+    local parallel64 = parallel16Benchmark(pool64, i)
+    local parallel128 = parallel16Benchmark(pool128, i)
+    local row = lowDifficultyDataset:AppendRow({i, serial, parallel16, parallel64, parallel128})
+    print(lowDifficultyDataset:RowToCsv(row))
 end
 
 -- Exponential difficulty benchmark
+print("\nOctaves,Serial,Parallel16,Parallel64,Parallel128")
+local highDifficultyDataset = Dataset.new({"Octaves", "Serial", "Parallel16", "Parallel64", "Parallel128"})
 for i = 8, 13 do
     local difficulty = 2^i
-    table.insert(datasets.large.Octaves, difficulty)
-    datasets.large.Serial[difficulty] = serialBenchmark(difficulty)
-    datasets.large.Parallel16[difficulty] = parallel16Benchmark(pool16, difficulty)
-    datasets.large.Parallel64[difficulty] = parallel16Benchmark(pool64, difficulty)
-    datasets.large.Parallel128[difficulty] = parallel16Benchmark(pool128, difficulty)
-    print(difficulty .. "," .. datasets.large.Serial[difficulty] .. "," .. datasets.large.Parallel16[difficulty] .. "," .. datasets.large.Parallel64[difficulty] .. "," .. datasets.large.Parallel128[difficulty])
+    local serial = serialBenchmark(difficulty)
+    local parallel16 = parallel16Benchmark(pool16, difficulty)
+    local parallel64 = parallel16Benchmark(pool64, difficulty)
+    local parallel128 = parallel16Benchmark(pool128, difficulty)
+    local row = highDifficultyDataset:AppendRow({difficulty, serial, parallel16, parallel64, parallel128})
+    print(highDifficultyDataset:RowToCsv(row))
 end
 
 -- Print the datasets as CSV for analysis
-local small = "Octaves,Serial,Parallel16,Parallel64,Parallel128\n"
-for _, v in pairs(datasets.small.Octaves) do
-    small = small .. v .. "," .. datasets.small.Serial[v] .. "," .. datasets.small.Parallel16[v] .. "," .. datasets.small.Parallel64[v] .. "," .. datasets.small.Parallel128[v] .. "\n"
-end
-print("Small workload dataset:\n" .. small.."\n")
-
-local large = "Octaves,Serial,Parallel16,Parallel64,Parallel128\n"
-for _, v in pairs(datasets.large.Octaves) do
-    large = large .. v .. "," .. datasets.large.Serial[v] .. "," .. datasets.large.Parallel16[v] .. "," .. datasets.large.Parallel64[v] .. "," .. datasets.large.Parallel128[v] .. "\n"
-end
-print("Large workload dataset:\n" .. large)
+print("Small workload dataset:\n" .. lowDifficultyDataset:ToCsv() .."\n")
+print("Large workload dataset:\n" .. lowDifficultyDataset:ToCsv())
 
 -- Cleanup
 pool16:Destroy()
