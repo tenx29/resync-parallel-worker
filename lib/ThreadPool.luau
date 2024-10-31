@@ -176,10 +176,6 @@ end
 -- Uses a round-robin dispatch policy.
 -- If dispatching to busy threads is allowed, the function will return the next initialized thread even if it's running.
 function ThreadPool:GetNextFreeThread(): number?
-    if self.AllowDispatchingToBusyThreads then
-        return self._lastDispatchedThread :: number % self.ThreadCount + 1
-    end
-
     for i = 1, self.ThreadCount do
         local thread = i + self._lastDispatchedThread :: number
         local finalThreadId = (thread - 1) % self.ThreadCount + 1
