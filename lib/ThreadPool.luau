@@ -28,7 +28,7 @@ export type QueueType = "FIFO" | "LIFO"
 
 local function AddThread(self: any, worker: ModuleScript)
     local actor = Instance.new("Actor")
-    actor.Name = tostring(#self.Actors + 1)
+    actor.Name = "Worker" .. tostring(#self.Actors + 1)
     actor.Parent = self.ThreadContainer
     local handler = if IsClient then ClientHandler:Clone() else ServerHandler:Clone()
     handler.Parent = actor
