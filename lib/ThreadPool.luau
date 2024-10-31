@@ -233,11 +233,8 @@ end
 
 -- Wait for all threads to finish. If requireEmptyQueue is true, the function will also wait for the task queue to be empty.
 -- requireEmptyQueue is true by default.
--- If AllowDispatchingToBusyThreads is true, the function will return immediately.
+-- If AllowDispatchingToBusyThreads is true, the function may return before all threads are done if the task queue is empty.
 function ThreadPool:WaitForCompletion(requireEmptyQueue: boolean?)
-    if self.AllowDispatchingToBusyThreads then
-        return
-    end
     local _, threadCounts = self:GetThreadStates()
     local requireQueue = if requireEmptyQueue == nil then true else requireEmptyQueue
     while (requireQueue and self._batchDispatchInProgress and #self.TaskQueue > 0) or threadCounts.Running > 0 do
