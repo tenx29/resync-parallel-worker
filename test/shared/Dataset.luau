@@ -31,6 +31,16 @@ function Dataset:SetCell(row: number, column: number, value: any)
     self.data[row][column] = value
 end
 
+function Dataset:HeaderToCsv(columns: {number}?): string
+    local headerValues = {}
+    for i, header in ipairs(self.headers) do
+        if not columns or table.find(columns, i) then
+            table.insert(headerValues, header)
+        end
+    end
+    return table.concat(headerValues, ",")
+end
+
 function Dataset:RowToCsv(row: number, columns: {number}?): string
     assert(row <= #self.data, "Row index out of bounds")
     local rowValues = {}
@@ -45,15 +55,7 @@ end
 -- Returns a CSV string representation of the dataset
 -- If columns is provided, only the columns specified will be included in the CSV
 function Dataset:ToCsv(columns: {number}?): string
-    -- Write headers, filter by columns if provided
-    local headerValues = {}
-    for i, header in ipairs(self.headers) do
-        if not columns or table.find(columns, i) then
-            table.insert(headerValues, header)
-        end
-    end
-
-    local csv = table.concat(headerValues, ",") .. "\n"
+    local csv = self:HeaderToCsv(columns) .. "\n"
     
     for i, _ in ipairs(self.data) do
         csv = csv .. self:RowToCsv(i, columns) .. "\n"
