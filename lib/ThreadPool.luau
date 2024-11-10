@@ -203,13 +203,14 @@ function ThreadPool:WaitForFreeThread()
 end
 
 -- Count the number of threads in each state
-function ThreadPool:GetThreadStates(): ({number}, {[ThreadState]: number})
-    local states = {} :: {number}
+function ThreadPool:GetThreadStates(): ({[ThreadState]: number}, {number})
+    -- Aggregate thread states
     local totals = {
         Ready = 0,
         Running = 0,
         Setup = 0,
     }
+    local states = {} :: {number}   -- How many tasks each thread is running, or -1 if the thread is not initialized
     for i, workerState in self.WorkerState do
         states[i] = workerState or -1
         if workerState == nil then
@@ -220,7 +221,7 @@ function ThreadPool:GetThreadStates(): ({number}, {[ThreadState]: number})
             totals.Running += 1
         end
     end
-    return states, totals
+    return totals, states
 end
 
 -- Yields the current thread until the specified thread is done.
@@ -242,11 +243,11 @@ end
 -- requireEmptyQueue is true by default.
 -- If AllowDispatchingToBusyThreads is true, the function may return before all threads are done if the task queue is empty.
 function ThreadPool:WaitForCompletion(requireEmptyQueue: boolean?)
-    local _, threadCounts = self:GetThreadStates()
+    local threadCounts = self:GetThreadStates()
     local requireQueue = if requireEmptyQueue == nil then true else requireEmptyQueue
     while (requireQueue and self._batchDispatchInProgress and #self.TaskQueue > 0) or threadCounts.Running > 0 do
         self._threadFreedEvent.Event:Wait()
-        _, threadCounts = self:GetThreadStates()
+        threadCounts = self:GetThreadStates()
     end
 end
 
