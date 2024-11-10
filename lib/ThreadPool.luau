@@ -21,6 +21,7 @@ export type AggregatedThreadStates = {Ready: number, Running: number, Setup: num
 -- LIFO: Last-In-First-Out. The last thread added to the queue is dispatched first.
 export type QueueType = "FIFO" | "LIFO"
 
+-- Add a new thread to a thread pool
 local function AddThread(self: any, worker: ModuleScript)
     local id = #self.Actors + 1
     local actor = Instance.new("Actor")
@@ -45,10 +46,12 @@ local function GetThreadPoolContainer(): Folder
     return ThreadPoolsContainer
 end
 
--- Create a new thread pool with the given worker script and thread count.
--- 
--- If allowDispatchingToBusyThreads is true, the thread pool can dispatch new tasks to threads that are already running a task.
--- This can reduce overhead in cases where knowing when a task finishes is not important, but disables the ability to wait for threads to finish.
+--[[
+    Create a new thread pool with the given worker script and thread count.
+    
+    If allowDispatchingToBusyThreads is true, the thread pool can dispatch new tasks to threads that are already running a task.
+    This can reduce overhead in cases where knowing when a task finishes is not important, but disables the ability to wait for threads to finish.
+]]
 function ThreadPool.new(worker: ModuleScript, threads: number, queueType: QueueType?, allowDispatchingToBusyThreads: boolean?): ThreadPool
     assert(typeof(worker) == "Instance" and worker:IsA("ModuleScript"), "A ModuleScript that returns a function must be provided as a thread worker.")
     assert(typeof(threads) == "number" and threads % 1 == 0, "Thread count must be a positive integer.")
@@ -101,6 +104,7 @@ function ThreadPool.new(worker: ModuleScript, threads: number, queueType: QueueT
     return self
 end
 
+-- Remove an item from the queue based on the queue type
 local function TakeFromQueue(queue: {any}, queueType: QueueType): any
     if queueType == "FIFO" then
         return table.remove(queue, 1)
@@ -109,9 +113,11 @@ local function TakeFromQueue(queue: {any}, queueType: QueueType): any
     end
 end
 
--- Dispose of the thread pool.
--- Waits for any running threads to finish before destroying the pool.
--- Yields the current thread until the pool is destroyed.
+--[[
+    Dispose of the thread pool.
+    Waits for any running threads to finish before destroying the pool.
+    Yields the current thread until the pool is destroyed.
+]]
 function ThreadPool:Destroy()
     self.AutoDispatch = false
     self.TaskQueue = {}
@@ -135,8 +141,11 @@ function ThreadPool:Destroy()
     setmetatable(self, nil)
 end
 
--- Inserts a new item into the task queue. A thread will be dispatched with the given arguments.
--- If AutoDispatch is enabled, the thread will be dispatched immediately along with any other queued threads.
+--[[
+    Inserts a new item into the task queue. A thread will be dispatched with the given arguments.
+    
+    If AutoDispatch is enabled, the thread will be dispatched immediately along with any other queued threads.
+]]
 function ThreadPool:Add(...)
     table.insert(self.TaskQueue, {...})
     if self.AutoDispatch and not self._batchDispatchInProgress then
@@ -146,8 +155,10 @@ function ThreadPool:Add(...)
     end
 end
 
--- Inserts a batch of items into the task queue. Threads will be dispatched with the given arguments.
--- If AutoDispatch is enabled, the threads will be dispatched immediately along with any other queued threads.
+--[[
+    Inserts a batch of items into the task queue. Threads will be dispatched with the given arguments.
+    If AutoDispatch is enabled, the threads will be dispatched immediately along with any other queued threads.
+]]
 function ThreadPool:AddBatch(batch: {{any}})
     for _, args in batch do
         self:Add(unpack(args))
@@ -177,9 +188,11 @@ function ThreadPool:Resize(newThreadCount: number)
     self.ThreadCount = newThreadCount
 end
 
--- Returns the next free thread ID. If no threads are free, returns nil.
--- Uses a round-robin dispatch policy.
--- If dispatching to busy threads is allowed, the function will return the next initialized thread even if it's running.
+--[[
+    Returns the next free thread ID. If no threads are free, returns nil.
+    Uses a round-robin dispatch policy.
+    If dispatching to busy threads is allowed, the function will return the next initialized thread even if it's running.
+]]
 function ThreadPool:GetNextFreeThread(): number?
     for i = 1, self.ThreadCount do
         local thread = i + self._lastDispatchedThread :: number
@@ -202,7 +215,7 @@ function ThreadPool:WaitForFreeThread()
     return id
 end
 
--- Count the number of threads in each state
+-- Returns a tuple containing the aggregated thread states and the number of tasks each thread is running.
 function ThreadPool:GetThreadStates(): (AggregatedThreadStates, {number})
     -- Aggregate thread states
     local totals = {
@@ -224,10 +237,11 @@ function ThreadPool:GetThreadStates(): (AggregatedThreadStates, {number})
     return totals, states
 end
 
--- Yields the current thread until the specified thread is done.
--- Note that other tasks may be dispatched soon after the thread finishes,
--- so it is not guaranteed that the thread will be free after this function returns.
--- If AllowDispatchingToBusyThreads is true, the function will return immediately.
+--[[
+    Yields the current thread until the specified thread is done.
+    Note that other tasks may be dispatched soon after the thread finishes, so it is not guaranteed that the thread will be free after this function returns.
+    If AllowDispatchingToBusyThreads is true, the function will return immediately.
+]]
 function ThreadPool:WaitForThread(threadId: number)
     if self.AllowDispatchingToBusyThreads then
         return
@@ -239,9 +253,11 @@ function ThreadPool:WaitForThread(threadId: number)
     return
 end
 
--- Wait for all threads to finish. If requireEmptyQueue is true, the function will also wait for the task queue to be empty.
--- requireEmptyQueue is true by default.
--- If AllowDispatchingToBusyThreads is true, the function may return before all threads are done if the task queue is empty.
+--[[
+    Waits for all threads to finish. If requireEmptyQueue is true, the function will also wait for the task queue to be empty.
+    requireEmptyQueue is true by default.
+    If AllowDispatchingToBusyThreads is true, the function may return before all threads are done if the task queue is empty.
+]]
 function ThreadPool:WaitForCompletion(requireEmptyQueue: boolean?)
     local threadCounts = self:GetThreadStates()
     local requireQueue = if requireEmptyQueue == nil then true else requireEmptyQueue
@@ -251,8 +267,10 @@ function ThreadPool:WaitForCompletion(requireEmptyQueue: boolean?)
     end
 end
 
--- Dispatches a single thread with the given arguments.
--- Returns the thread worker ID. Yields the current thread until the thread is dispatched.
+--[[
+    Dispatches a single thread with the given arguments.
+    Returns the thread worker ID. Yields the current thread until the thread is dispatched.
+]]
 function ThreadPool:DispatchAsync(...: any): number
     -- Find and reserve a free thread
     local threadId: number = self:WaitForFreeThread()
@@ -263,17 +281,21 @@ function ThreadPool:DispatchAsync(...: any): number
     return threadId
 end
 
--- Dispatches a single thread with the given arguments.
--- Returns the thread worker ID.
+--[[
+    Dispatches a single thread with the given arguments.
+    Returns the thread worker ID.
+]]
 function ThreadPool:Dispatch(...: any)
     local threadId = self:DispatchAsync(...)
     self:WaitForThread(threadId)
     return threadId
 end
 
--- Dispatches the next item in the task queue.
--- Yields the current thread until the thread is dispatched.
--- Returns the ID of the dispatched thread.
+--[[
+    Dispatches the next item in the task queue.
+    Yields the current thread until the thread is dispatched.
+    Returns the ID of the dispatched thread.
+]]
 function ThreadPool:DispatchNextAsync()
     if #self.TaskQueue == 0 then
         return
@@ -287,18 +309,22 @@ function ThreadPool:DispatchNextAsync()
     return threadId
 end
 
--- Dispatches the next item in the task queue.
--- Yields the current thread until the thread is completed.
--- Returns the ID of the dispatched thread.
-function ThreadPool:DispatchNext()
+--[[
+    Dispatches the next item in the task queue.
+    Yields the current thread until the thread is completed.
+    Returns the ID of the dispatched thread.
+]]
+    function ThreadPool:DispatchNext()
     local threadId = self:DispatchNextAsync()
     self:WaitForThread(threadId)
     return threadId
 end
 
--- Dispatches as many items from the task queue as immediately possible.
--- Yields the current thread until all threads are dispatched.
--- Returns the number of dispatched threads.
+--[[
+    Dispatches as many items from the task queue as immediately possible.
+    Yields the current thread until all threads are dispatched.
+    Returns the number of dispatched threads.
+]]
 function ThreadPool:DispatchToAllFreeThreadsAsync()
     local dispatchedThreads = 0
     for _ = 1, self.ThreadCount do
@@ -321,18 +347,22 @@ function ThreadPool:DispatchToAllFreeThreadsAsync()
     return dispatchedThreads
 end
 
--- Dispatches as many items from the task queue as immediately possible.
--- Yields the current thread until all threads are completed.
--- Returns the number of dispatched threads.
-function ThreadPool:DispatchToAllFreeThreads()
+--[[
+    Dispatches as many items from the task queue as immediately possible.
+    Yields the current thread until all threads are completed.
+    Returns the number of dispatched threads.
+]]
+    function ThreadPool:DispatchToAllFreeThreads()
     local dispatchedThreads = self:DispatchToAllFreeThreadsAsync()
     self:WaitForCompletion(false)
     return dispatchedThreads
 end
 
--- Dispatches all items in the task queue until the queue is empty.
--- Yields the current thread until all threads are dispatched.
--- Returns the number of dispatched threads.
+--[[
+    Dispatches all items in the task queue until the queue is empty.
+    Yields the current thread until all threads are dispatched.
+    Returns the number of dispatched threads.
+]]
 function ThreadPool:DispatchAllAsync()
     if self._batchDispatchInProgress then
         return 0
@@ -350,9 +380,11 @@ function ThreadPool:DispatchAllAsync()
     return dispatchedThreads
 end
 
--- Dispatches all items in the task queue until the queue is empty.
--- Yields the current thread until all threads are completed.
--- Returns the number of dispatched threads.
+--[[
+    Dispatches all items in the task queue until the queue is empty.
+    Yields the current thread until all threads are completed.
+    Returns the number of dispatched threads.
+]]
 function ThreadPool:DispatchAll()
     local dispatchedThreads = self:DispatchAllAsync()
     self:WaitForCompletion()
