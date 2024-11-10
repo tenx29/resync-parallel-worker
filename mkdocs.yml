@@ -1,0 +1,51 @@
+site_name: Resync Documentation
+site_url: https://tenx29.github.io/resync-parallel-worker/
+repo_name: tenx29/resync-parallel-worker
+repo_url: https://github.com/tenx29/resync-parallel-worker/
+
+extra_css:
+  - stylesheets/extra.css
+
+nav:
+  - About Resync: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - Tutorial Setup: getting-started/tutorial-setup.md
+    - Generating Terrain: getting-started/generating-terrain.md
+    - Parallel Terrain Generation: getting-started/parallel-terrain-generation.md
+    - Thread Dispatching: getting-started/thread-dispatching.md
+    - Best Practices & Optimization: getting-started/best-practices.md
+  - API Reference: api-reference.md
+
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.footer
+
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: red
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: red
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+markdown_extensions: 
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
