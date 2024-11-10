@@ -15,7 +15,9 @@ nav:
     - Parallel Terrain Generation: getting-started/parallel-terrain-generation.md
     - Thread Dispatching: getting-started/thread-dispatching.md
     - Best Practices & Optimization: getting-started/best-practices.md
-  - API Reference: api-reference.md
+  - API Reference:
+    - ThreadPool: api-reference/threadpool.md
+    - Types: api-reference/types.md
 
 theme:
   name: material
