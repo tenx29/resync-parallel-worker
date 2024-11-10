@@ -34,6 +34,12 @@ Table of all the actors in the thread pool. Should not be modified.
 
 Whether tasks can be dispatched to threads that are already executing a task. If `true`, tasks will be dispatched to the next initialized thread in a round-robin fashion even if the thread is busy. If `false`, busy threads will be skipped until an idle thread is found, or the thread pool will wait until a thread becomes available.
 
+!!! important
+    Setting this property to `true` will disable Resync's [Thread State Tracking](../getting-started/thread-dispatching.md#thread-state-tracking) feature, which can improve performance, but without it Resync will not guarantee that all threads have finished their tasks once the task queue is empty. Resync should still be able to keep track of this internally, but won't strictly enforce it.
+
+!!! danger "Experimental Feature"
+    This property may be removed in a future version of Resync if Resync's thread state tracking is found to be stable without this restriction.
+
 ### AutoDispatch
 
 [`boolean`](https://create.roblox.com/docs/luau/booleans)

@@ -31,6 +31,9 @@ This approach is useful when you have a continuous stream of tasks that need to 
 
 ## Thread State Tracking
 
+!!! danger "Experimental Feature"
+    Thread state tracking is still experimental. If the current implementation is found to be stable, `ThreadPool.AllowDispatchingToBusyThreads` may be removed in a future version of Resync.
+
 By default, Resync tracks the state of each task dispatched to the thread pool. This allows you to wait for tasks to complete, and allows Resync to only dispatch tasks to threads that are not currently busy.
 This tracking and management of thread state can introduce some overhead as tasks are dispatched and completed. If you don't need to track the state of tasks or know when they complete, you can disable thread state tracking by setting `ThreadPool.AllowDispatchingToBusyThreads` to `true`.
 
