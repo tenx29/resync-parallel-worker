@@ -352,7 +352,7 @@ end
     Yields the current thread until all threads are completed.
     Returns the number of dispatched threads.
 ]]
-    function ThreadPool:DispatchToAllFreeThreads()
+function ThreadPool:DispatchToAllFreeThreads()
     local dispatchedThreads = self:DispatchToAllFreeThreadsAsync()
     self:WaitForCompletion(false)
     return dispatchedThreads
