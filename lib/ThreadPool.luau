@@ -83,14 +83,14 @@ function ThreadPool.new(worker: ModuleScript, threads: number, queueType: QueueT
     -- Connect thread done event
     self._threadDoneConnection = ThreadDoneEvent.Event:Connect(function(threadId: number, success: boolean, err: string?)
         -- Update the number of tasks the thread is running
+        local newState = 0
         SharedTable.update(self.WorkerState, threadId, function(state): any
-            if typeof(state) == "number" then
-                return state - 1
-            else
-                return 0
-            end
+            newState = if state == nil then 0 else state - 1
+            return newState
         end)
-        self._threadFreedEvent:Fire(threadId)
+        if newState == 0 then
+            self._threadFreedEvent:Fire(threadId)
+        end
         if not success then
             warn(`Thread {threadId} failed with error: {err}`)
         end
