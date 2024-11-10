@@ -14,7 +14,7 @@ local IsClient = RunService:IsClient()
 local ServerHandler: Script = (script.Parent :: Instance):WaitForChild("ServerHandler") :: Script
 local ClientHandler: Script = (script.Parent :: Instance):WaitForChild("ClientHandler") :: Script
 
-export type ActorState = "Ready" | "Running" | "Setup"
+export type AggregatedThreadStates = {Ready: number, Running: number, Setup: number}
 
 -- Task queue types
 -- FIFO: First-In-First-Out. Threads are dispatched in the order they were added to the queue.
@@ -203,7 +203,7 @@ function ThreadPool:WaitForFreeThread()
 end
 
 -- Count the number of threads in each state
-function ThreadPool:GetThreadStates(): ({[ThreadState]: number}, {number})
+function ThreadPool:GetThreadStates(): (AggregatedThreadStates, {number})
     -- Aggregate thread states
     local totals = {
         Ready = 0,
