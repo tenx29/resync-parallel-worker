@@ -29,8 +29,6 @@ local function AddThread(self: any, worker: ModuleScript)
     actor:SetAttribute("Id", id)
     table.insert(self.Actors, actor)
     
-    self.WorkerState[#self.Actors] = "Setup"  -- Prevent dispatching until the actor is ready
-    
     -- Add the handler script to the actor. Once initialized, the handler will fire the "ThreadDone" event.
     worker:Clone().Parent = actor
     local handler = if IsClient then ClientHandler:Clone() else ServerHandler:Clone()
@@ -81,7 +79,14 @@ function ThreadPool.new(worker: ModuleScript, threads: number, queueType: QueueT
 
     -- Connect thread done event
     self._threadDoneConnection = ThreadDoneEvent.Event:Connect(function(threadId: number, success: boolean, err: string?)
-        self.WorkerState[threadId] = "Ready"
+        -- Update the number of tasks the thread is running
+        SharedTable.update(self.WorkerState, threadId, function(state): any
+            if typeof(state) == "number" then
+                return state - 1
+            else
+                return 0
+            end
+        end)
         self._threadFreedEvent:Fire(threadId)
         if not success then
             warn(`Thread {threadId} failed with error: {err}`)
@@ -180,7 +185,7 @@ function ThreadPool:GetNextFreeThread(): number?
         local thread = i + self._lastDispatchedThread :: number
         local finalThreadId = (thread - 1) % self.ThreadCount + 1
         local workerState = self.WorkerState[finalThreadId]
-        if workerState == "Ready" or (workerState ~= "Setup" and self.AllowDispatchingToBusyThreads) then
+        if workerState == 0 or (workerState ~= nil and self.AllowDispatchingToBusyThreads) then
             return finalThreadId
         end
     end
@@ -198,20 +203,22 @@ function ThreadPool:WaitForFreeThread()
 end
 
 -- Count the number of threads in each state
-function ThreadPool:GetThreadStates(): {[ThreadState]: number}
-    local states = {
-        Ready = {},
-        Running = {},
-        Setup = {},
-    }
+function ThreadPool:GetThreadStates(): ({number}, {[ThreadState]: number})
+    local states = {} :: {number}
     local totals = {
         Ready = 0,
         Running = 0,
         Setup = 0,
     }
     for i, workerState in self.WorkerState do
-        table.insert(states[workerState], i)
-        totals[workerState] += 1
+        states[i] = workerState or -1
+        if workerState == nil then
+            totals.Setup += 1
+        elseif workerState == 0 then
+            totals.Ready += 1
+        else
+            totals.Running += 1
+        end
     end
     return states, totals
 end
@@ -225,7 +232,7 @@ function ThreadPool:WaitForThread(threadId: number)
         return
     end
     local id = nil
-    while id ~= threadId and self.WorkerState[threadId] == "Running" do
+    while id ~= threadId and self.WorkerState[threadId] and self.WorkerState[threadId] > 0 do
         id = self._threadFreedEvent.Event:Wait()
     end
     return
@@ -247,8 +254,8 @@ end
 -- Returns the thread worker ID. Yields the current thread until the thread is dispatched.
 function ThreadPool:DispatchAsync(...: any): number
     -- Find and reserve a free thread
-    local threadId = self:WaitForFreeThread()
-    self.WorkerState[threadId] = "Running"
+    local threadId: number = self:WaitForFreeThread()
+    SharedTable.increment(self.WorkerState, threadId, 1)
     local actor = self.Actors[threadId]
     self._lastDispatchedThread = threadId
     actor:SendMessage("dispatch", actor, threadId, ...)
@@ -271,7 +278,7 @@ function ThreadPool:DispatchNextAsync()
         return
     end
     local threadId = self:WaitForFreeThread()
-    self.WorkerState[threadId] = "Running"
+    SharedTable.increment(self.WorkerState, threadId, 1)
     local args = TakeFromQueue(self.TaskQueue, self.QueueType)
     local actor = self.Actors[threadId]
     self._lastDispatchedThread = threadId
@@ -303,7 +310,7 @@ function ThreadPool:DispatchToAllFreeThreadsAsync()
             break
         end
 
-        self.WorkerState[threadId] = "Running"
+        SharedTable.increment(self.WorkerState, threadId, 1)
         local args = TakeFromQueue(self.TaskQueue, self.QueueType)
         local actor = self.Actors[threadId]
         self._lastDispatchedThread = threadId
