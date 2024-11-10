@@ -10,7 +10,7 @@ A ThreadPool is a collection of threads that can be used to execute tasks concur
 (worker: ModuleScript, threads: number, queueType: QueueType?, allowDispatchingToBusyThreads: boolean?): ThreadPool
 ```
 
-Creates a new ThreadPool using the specified worker module and number of threads.
+Creates a new ThreadPool using the specified worker module and number of threads. All threads are initialized automatically when the ThreadPool is created.
 
 - `worker` should be a [ModuleScript](https://create.roblox.com/docs/reference/engine/classes/ModuleScript) that returns a function. When a task is dispatched, the function is called with the current thread's [Actor](https://create.roblox.com/docs/reference/engine/classes/Actor), the thread worker's index (1-indexed), and any additional arguments passed to the dispatch method.
 - `threads` is the number of threads to create in the pool. Should be a positive integer.
@@ -239,7 +239,7 @@ Returns the ID of the next free thread in the thread pool. If no threads are fre
 GetThreadStates(): (AggregatedThreadStates, {number})
 ```
 
-Returns a tuple containing an [`AggregatedThreadStates`](types.md#aggregatedthreadstates) table and the number of running tasks in each thread. The `AggregatedThreadStates` table contains the total number of threads in each state.
+Returns a tuple containing an [`AggregatedThreadStates`](types.md#aggregatedthreadstates) table and a table listing the number of active tasks in each thread, or -1 if a thread hasn't been initialized. The `AggregatedThreadStates` table contains the total number of threads in each state.
 
 ### Resize
 
@@ -248,7 +248,7 @@ Resize(newThreadCount: number): void
 ```
 
 Resizes the thread pool to the specified number of threads. If the new thread count is greater than the current thread count, new threads will be created. If the new thread count is less than the current thread count, threads will be destroyed.
-Waits until all currently running tasks have completed before resizing the thread pool.
+Waits until all currently running tasks have completed before resizing the thread pool. New threads will be initialized with the worker function from the original thread pool.
 
 `newThreadCount` should be a positive integer.
 
