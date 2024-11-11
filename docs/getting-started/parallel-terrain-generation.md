@@ -76,7 +76,7 @@ In this case, we're doing the Perlin noise sampling (the slowest part of terrain
 
 Next, let's go back to the executing script and modify it to use a Resync thread pool to generate terrain in parallel.
 
-```luau linenums="1" hl_lines="3 9-11 16 19"
+```luau linenums="1" hl_lines="3 9-11 16 19 25-27"
 local ServerScriptService = game:GetService("ServerScriptService")
 local ChunkGenerator = require(ServerScriptService.ChunkGenerator)
 local ThreadPool = require(game.ReplicatedStorage.Resync.ThreadPool)
@@ -100,6 +100,10 @@ local endTime = os.clock()
 
 local timeTaken = endTime - startTime
 print("Parallel execution time:", timeTaken)
+
+-- Since we know we won't be using the thread pool anymore, we should
+-- destroy it to free up resources
+pool:Destroy()
 ```
 
 In this script, we've created a new thread pool with a maximum of 64 worker threads and added tasks to the pool for each chunk to be generated.

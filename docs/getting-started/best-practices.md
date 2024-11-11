@@ -2,6 +2,10 @@
 
 This section contains some useful information to keep in mind when working with Resync.
 
+## Dispose of the thread pool
+
+Since the thread pool contains references to Roblox Instances, the garbage collector won't automatically clean it up. This is why it's important to call [`ThreadPool:Destroy()`](../api-reference/threadpool.md#destroy) when you're done using the thread pool to avoid memory leaks. This will clear the task queue, wait for all current tasks to finish and then cleans up the thread pool and all of its resources, allowing the garbage collector to reclaim the memory used by the thread pool.
+
 ## Parallelization overhead
 
 Like any parallel processing system (both software and hardware), Resync introduces some overhead when dispatching tasks to a thread pool. This is due to the computational cost of creating and managing threads, as well as the small amount of code used to execute the task itself. The amount of overhead is generally proportional to the number of tasks being executed, or *O(n)*, where *n* is the number of tasks. Resync's optional Thread State Tracking feature also incurs some overhead caused by waiting for threads to finish before dispatching new tasks.
