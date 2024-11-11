@@ -31,6 +31,25 @@ Resync can be installed in two ways:
    ```
 4. You're ready to start parallelizing your tasks! Refer to the API reference or follow the tutorial to get started.
 
+## Code Example
+
+```lua
+local ThreadPool = require(game.ReplicatedStorage.Resync.ThreadPool)
+local myWorkerModule = script.MyWorkerModule -- ModuleScript that returns a function
+
+-- Create a new thread pool with 4 worker threads
+local myThreadPool = ThreadPool.new(myWorkerModule, 4)
+
+-- Add tasks to the queue. Accepts any number of arguments that will be passed to the worker function.
+myThreadPool:Add("task 1", 1)
+myThreadPool:Add("task 2", 2)
+myThreadPool:Add("task 3", 3)
+
+-- Dispatch all tasks in the queue and wait for them to complete
+myThreadPool:DispatchAll()
+```
+
 ## Documentation
 
-Documentation is available at [https://tenx29.github.io/resync-parallel-worker/](https://tenx29.github.io/resync-parallel-worker/).
+- [Tutorial](https://tenx29.github.io/resync-parallel-worker/getting-started/tutorial-setup/)
+- [API reference](https://tenx29.github.io/resync-parallel-worker/api-reference/threadpool/)
