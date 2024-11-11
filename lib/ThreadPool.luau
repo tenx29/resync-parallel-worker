@@ -21,7 +21,7 @@ export type AggregatedThreadStates = {Ready: number, Running: number, Setup: num
 -- LIFO: Last-In-First-Out. The last thread added to the queue is dispatched first.
 export type QueueType = "FIFO" | "LIFO"
 
--- Add a new thread to a thread pool
+-- Add a new thread to a thread pool and wait for it to initialize
 local function AddThread(self: any, worker: ModuleScript)
     local id = #self.Actors + 1
     local actor = Instance.new("Actor")
@@ -29,11 +29,34 @@ local function AddThread(self: any, worker: ModuleScript)
     actor.Parent = self.ThreadContainer
     actor:SetAttribute("Id", id)
     table.insert(self.Actors, actor)
+
+    -- Get the thread done event and connect to it once to avoid race conditions during initialization
+    local done: BindableEvent = self.ThreadContainer:FindFirstChildOfClass("BindableEvent")
+    local lastDoneId, success, err
+    done.Event:Once(function(threadId, s, e)
+        lastDoneId = threadId
+        success = s
+        err = e
+    end)
     
     -- Add the handler script to the actor. Once initialized, the handler will fire the "ThreadDone" event.
     worker:Clone().Parent = actor
     local handler = if IsClient then ClientHandler:Clone() else ServerHandler:Clone()
     handler.Parent = actor
+    
+    -- Wait for the handler to initialize
+    while lastDoneId ~= id do
+        lastDoneId, success, err = done.Event:Wait()
+    end
+
+    -- Throw an error if the worker failed to initialize
+    if not success then
+        error(`Thread worker {id} failed to initialize: {err}`)
+    end
+
+    -- Initialize the worker state and let the thread pool know that the worker is ready
+    self.WorkerState[id] = 0
+    self._threadFreedEvent:Fire(id)
 end
 
 -- Get the thread pool container object and create it if it doesn't exist
@@ -82,13 +105,14 @@ function ThreadPool.new(worker: ModuleScript, threads: number, queueType: QueueT
 
     -- Connect thread done event
     self._threadDoneConnection = ThreadDoneEvent.Event:Connect(function(threadId: number, success: boolean, err: string?)
+        -- Ignore uninitialized threads
+        if not self.WorkerState[threadId] then
+            return
+        end
+
         -- Update the number of tasks the thread is running
-        local newState = 0
-        SharedTable.update(self.WorkerState, threadId, function(state): any
-            newState = if state == nil then 0 else state - 1
-            return newState
-        end)
-        if newState == 0 then
+        local oldState = SharedTable.increment(self.WorkerState, threadId, -1)
+        if oldState == 1 then
             self._threadFreedEvent:Fire(threadId)
         end
         if not success then

@@ -1,10 +1,24 @@
 local Actor = script:GetActor()
 
 function init()
+    local id = Actor:GetAttribute("Id")
     local done = script.Parent.Parent:WaitForChild("ThreadDone") :: BindableEvent
-    Actor:BindToMessage("dispatch", function(actor: Actor, threadId: number, ...: any)
-        local worker = (script.Parent :: Instance):FindFirstChildOfClass("ModuleScript")
+    
+    -- Ensure the worker module is loaded
+    local worker = script.Parent:FindFirstChildOfClass("ModuleScript")
+    if not worker then
+        done:Fire(id, false, "worker module not found")
+        return
+    end
 
+    -- Ensure the worker module returns a function
+    local workerFunction = require(worker)
+    if typeof(workerFunction) ~= "function" then
+        done:Fire(id, false, `expected worker module to return a function, got {typeof(workerFunction)}`)
+        return
+    end
+
+    Actor:BindToMessage("dispatch", function(actor: Actor, threadId: number, ...: any)
         -- Handle errors thrown by the worker
         local success, trace = xpcall(function(...)
             require(worker)(actor, threadId, ...)
@@ -19,7 +33,7 @@ function init()
     end)
 
     -- Let the thread pool know that the worker is ready
-    done:Fire(Actor:GetAttribute("Id"), true, nil)
+    done:Fire(id, true, nil)
 end
 
 if Actor then
