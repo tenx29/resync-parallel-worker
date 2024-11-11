@@ -70,7 +70,7 @@ local function GetThreadPoolContainer(): Folder
 end
 
 --[[
-    Create a new thread pool with the given worker script and thread count.
+    Create a new thread pool with the given worker script and thread count. Yields the current thread until all workers are initialized.
     
     If allowDispatchingToBusyThreads is true, the thread pool can dispatch new tasks to threads that are already running a task.
     This can reduce overhead in cases where knowing when a task finishes is not important, but disables the ability to wait for threads to finish.
@@ -194,7 +194,7 @@ function ThreadPool:Clear()
     self.TaskQueue = {}
 end
 
--- Changes the number of threads in the pool. If the new count is less than the current count, the extra threads will be removed.
+-- Changes the number of threads in the pool. If the new count is less than the current count, the extra threads will be removed. Yields the current thread until all workers are initialized.
 function ThreadPool:Resize(newThreadCount: number)
     assert(newThreadCount > 0 and newThreadCount % 1 == 0, "Thread count must be a positive integer.")
     self:WaitForCompletion(true)

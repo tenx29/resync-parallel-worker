@@ -10,7 +10,7 @@ A ThreadPool is a collection of threads that can be used to execute tasks concur
 (worker: ModuleScript, threads: number, queueType: QueueType?, allowDispatchingToBusyThreads: boolean?): ThreadPool
 ```
 
-Creates a new ThreadPool using the specified worker module and number of threads. All threads are initialized automatically when the ThreadPool is created.
+Creates a new ThreadPool using the specified worker module and number of threads. All threads are initialized automatically when the ThreadPool is created. Yields the current thread until all threads are initialized.
 
 - `worker` should be a [ModuleScript](https://create.roblox.com/docs/reference/engine/classes/ModuleScript) that returns a function. When a task is dispatched, the function is called with the current thread's [Actor](https://create.roblox.com/docs/reference/engine/classes/Actor), the thread worker's index (1-indexed), and any additional arguments passed to the dispatch method.
 - `threads` is the number of threads to create in the pool. Should be a positive integer.
@@ -248,7 +248,7 @@ Resize(newThreadCount: number): void
 ```
 
 Resizes the thread pool to the specified number of threads. If the new thread count is greater than the current thread count, new threads will be created. If the new thread count is less than the current thread count, threads will be destroyed.
-Waits until all currently running tasks have completed before resizing the thread pool. New threads will be initialized with the worker function from the original thread pool.
+Waits until all currently running tasks have completed before resizing the thread pool. New threads will be initialized with the worker function from the original thread pool. Yields the current thread until all new workers are initialized.
 
 `newThreadCount` should be a positive integer.
 
