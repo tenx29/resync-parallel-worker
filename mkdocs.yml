@@ -18,6 +18,7 @@ nav:
   - API Reference:
     - ThreadPool: api-reference/threadpool.md
     - Types: api-reference/types.md
+    - Server & Client Handlers: api-reference/handlers.md
 
 theme:
   name: material
