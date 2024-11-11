@@ -21,7 +21,7 @@ function init()
     Actor:BindToMessage("dispatch", function(actor: Actor, threadId: number, ...: any)
         -- Handle errors thrown by the worker
         local success, trace = xpcall(function(...)
-            require(worker)(actor, threadId, ...)
+            workerFunction(actor, threadId, ...)
         end, debug.traceback, ...)
 
         -- Sketchy workaround to exceeding re-entrancy depth for ActorMessageEvent if the worker function doesn't desynchronize
