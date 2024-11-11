@@ -1,0 +1,9 @@
+[package]
+name = "tenx29/resync"
+description = "Thread pool library for Parallel Luau with synchronous and asynchronous APIs."
+version = "1.0.0"
+registry = "https://github.com/UpliftGames/wally-index"
+realm = "shared"
+license = "MIT"
+include = ["lib", "LICENSE", "wally.toml"]
+exclude = ["docs", "test", "*.rbxm", "*.rbxmx", "*.rbxl", "*.rbxlx", "*.lock", "sourcemap.json", "mkdocs.yml"]
