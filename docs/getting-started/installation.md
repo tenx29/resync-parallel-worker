@@ -8,7 +8,7 @@ Resync can be installed in two ways:
 2. Add Resync as a dependency in your `wally.toml` file.
    ```toml
    [dependencies]
-   resync = "tenx29/resync@1.0.0"
+   resync = "tenx29/resync@1.0.1"
    ```
 3. Run `wally install`.
 

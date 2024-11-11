@@ -1,7 +1,7 @@
 [package]
 name = "tenx29/resync"
 description = "Thread pool library for Parallel Luau with synchronous and asynchronous APIs."
-version = "1.0.0"
+version = "1.0.1"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"
 license = "MIT"
